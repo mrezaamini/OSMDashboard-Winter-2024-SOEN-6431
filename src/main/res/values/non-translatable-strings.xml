@@ -27,6 +27,7 @@
     <string name="stat_minute_seconds" translatable="false"><![CDATA[<b>%1$d:%2$02d</b>]]></string>
     <string name="stat_category" translatable="false"><![CDATA[<b>%1$s</b>]]></string>
     <string name="stat_time" translatable="false"><![CDATA[<b>%1$s</b>]]></string>
+    <string name="stats_meter_5_seconds" translatable="false">m/5s</string>
 
     <string name="report_issue_link" translatable="false">https://github.com/OpenTracksApp/OSMDashboard/issues/new?labels=bug&amp;body=%1$s</string>
 

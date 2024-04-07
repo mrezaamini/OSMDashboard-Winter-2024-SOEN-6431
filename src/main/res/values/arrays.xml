@@ -50,6 +50,7 @@
         <item>CATEGORY</item>
         <item>MOVING_TIME</item>
         <item>DISTANCE_KM</item>
+        <item>DISTANCE_M_5_SEC</item>
         <item>PACE_MIN_KM</item>
     </string-array>
 

@@ -71,6 +71,17 @@ public class StringUtils {
         return context.getString(R.string.stat_distance_with_unit, context.getString(R.string.stat_minute_seconds, minutes, seconds), context.getString(R.string.unit_minute_per_mile));
     }
 
+    public static String formatSpeedMeterPer5Sec(Context context, float meterPerSeconds) {
+        if (meterPerSeconds == 0) {
+            return "0 m/5s";
+        }
+
+        // Calculate the distance covered in 5 seconds
+        float distanceCovered = meterPerSeconds * 5;
+
+        return context.getString(R.string.stat_distance_with_unit, formatDecimal(distanceCovered), context.getString(R.string.stats_meter_5_seconds));
+    }
+
     private static String formatDecimal(double value) {
         return StringUtils.formatDecimal(value, 2);
     }

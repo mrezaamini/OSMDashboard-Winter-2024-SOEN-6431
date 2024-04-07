@@ -41,6 +41,12 @@ public enum StatisticElement {
             return StringUtils.formatSpeedInKmPerHour(context, statistics.getAvgMovingSpeedMeterPerSecond());
         }
     },
+    DISTANCE_M_5_SEC() {
+        @Override
+        public String getText(Context context, TrackStatistics statistics) {
+            return StringUtils.formatSpeedMeterPer5Sec(context, statistics.getAvgMovingSpeedMeterPerSecond());
+        }
+    },
     PACE_MIN_KM() {
         @Override
         public String getText(Context context, TrackStatistics statistics) {
