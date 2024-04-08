@@ -37,6 +37,7 @@ import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import androidx.documentfile.provider.DocumentFile;
 
+import org.json.JSONException;
 import org.oscim.android.MapPreferences;
 import org.oscim.backend.CanvasAdapter;
 import org.oscim.core.BoundingBox;
@@ -88,6 +89,7 @@ import javax.microedition.khronos.egl.EGLContext;
 import javax.microedition.khronos.opengles.GL10;
 
 import de.storchp.opentracks.osmplugin.dashboardapi.APIConstants;
+import de.storchp.opentracks.osmplugin.dashboardapi.Geometry;
 import de.storchp.opentracks.osmplugin.dashboardapi.Track;
 import de.storchp.opentracks.osmplugin.dashboardapi.TrackPoint;
 import de.storchp.opentracks.osmplugin.dashboardapi.Waypoint;
@@ -103,6 +105,19 @@ import de.storchp.opentracks.osmplugin.utils.TrackPointsDebug;
 import de.storchp.opentracks.osmplugin.utils.TrackStatistics;
 import okhttp3.Cache;
 import okhttp3.OkHttpClient;
+
+import org.json.JSONObject;
+import org.json.JSONArray;
+import java.io.IOException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import de.storchp.opentracks.osmplugin.dashboardapi.SkiElements;
+import de.storchp.opentracks.osmplugin.dashboardapi.Trail;
+import okhttp3.MediaType;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class MapsActivity extends BaseActivity implements ItemizedLayer.OnItemGestureListener<MarkerInterface> {
 
@@ -745,6 +760,35 @@ public class MapsActivity extends BaseActivity implements ItemizedLayer.OnItemGe
         }
     }
 
+    /**
+     * read ski elements from json input and returns it
+     * @param jsonString
+     * @return ski element translated from json file
+     * example of usage:
+     * String jsonInput = "[{\"type\":\"ski_element\",\"id\":1,\"bounds\":{\"minlat\":10,
+     *                      \"minlon\":20,\"maxlat\":30,\"maxlon\":40},\"nodes\":[123,456],
+     *                      \"geometry\":[{\"lat\":25,\"lon\":35}],\"tags\":{\"name\":\"Ski
+     *                      Resort\",\"piste:difficulty\":\"easy\",\"piste:type\":\"downhill\",
+     *                      \"ref\":\"SR001\"}}]";
+     */
+    public SkiElements readSkiElementsFromJson(String jsonString) {
+        SkiElements skiElement = new SkiElements();
+        try {
+            JSONArray jsonArray = new JSONArray(jsonString);
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject jsonObject = jsonArray.getJSONObject(i);
+                skiElement = SkiElements.parseJsonElement(jsonObject);
+                // Now you can use the parsed ski element as needed
+                System.out.println("Type: " + skiElement.type + ", ID: " + skiElement.id);
+                return skiElement;
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+        return skiElement;
+    }
+
     private void setEndMarker(GeoPoint endPos) {
         synchronized (map.layers()) {
             if (endMarker != null) {
@@ -936,6 +980,96 @@ public class MapsActivity extends BaseActivity implements ItemizedLayer.OnItemGe
     private float updateStrokeWidth(double frequency) {
         // frequency is added to the stroke width according to the frequency.
         return (float) (7f * frequency);
+    }
+
+    /**
+     * use ski and track point data together, a function to call retrieve their info and call visualizers for them
+     * @param data uri data
+     * @param update a boolean indicating update status
+     * @param protocolVersion
+     */
+    private void visualizeTrackpointsAndSkiElements(Uri data, boolean update, int protocolVersion) {
+        // Read trackpoints
+        ArrayList<GeoPoint> latLongs = new ArrayList<>();
+        readTrackpoints(data, update, protocolVersion);
+        // Parse ski elements
+        String skiElementsJsonString = "{ \"skiElements\": [{ \"type\": \"slope\", \"id\": 1 }, { \"type\": \"lift\", \"id\": 2 }] }";
+        SkiElements skiElements = readSkiElementsFromJson(skiElementsJsonString);
+        // Visualize trackpoints on map
+        visualizeTrackpoints(latLongs);
+        // Visualize ski elements on map
+        visualizeSkiElements(skiElements);
+    }
+
+    /**
+     * sample function to visualize track point information
+     * @param latLongs arraylist of geopoints
+     */
+    private void visualizeTrackpoints(ArrayList<GeoPoint> latLongs) {
+        // Creating a new Polyline layer to add trackpoints
+        PathLayer trackpointsLayer = new PathLayer(map, Color.RED, 5f);
+        for (GeoPoint point : latLongs) {
+            trackpointsLayer.addPoint(point);
+        }
+        map.layers().add(trackpointsLayer);
+    }
+
+    /**
+     * sample function to visualize information about a single ski element
+     * @param skiElement single element to be visualized
+     */
+    private void visualizeSkiElements(SkiElements skiElement) {
+        if (skiElement == null) {
+            return;
+        }
+        GeoPoint position = null;
+        // Check if the bounds are available
+        if (skiElement.bounds != null) {
+            // Calculate the center position using bounds
+            double lat = (skiElement.bounds.minlat + skiElement.bounds.maxlat) / 2.0;
+            double lon = (skiElement.bounds.minlon + skiElement.bounds.maxlon) / 2.0;
+            position = new GeoPoint(lat, lon);
+        } else if (skiElement.geometry != null && !skiElement.geometry.isEmpty()) {
+            // Use the first geometry point as the position
+            Geometry geometry = skiElement.geometry.get(0);
+            position = new GeoPoint(geometry.lat, geometry.lon);
+        }
+        if (position != null) {
+            // Add a marker to the layer
+            map.layers().add(addNewPolyline(Color.BLUE));
+        }
+    }
+
+    /**
+     * sample function to visualize list of ski elements
+     * @param skiElementsList list of ski elements to be visualized
+     */
+    private void visualizeSkiElements(ArrayList<SkiElements> skiElementsList) {
+        if (skiElementsList == null || skiElementsList.isEmpty()) {
+            return;
+        }
+
+        // Iterate over the list of SkiElements
+        for (SkiElements skiElement : skiElementsList) {
+            GeoPoint position = null;
+
+            // Check if the bounds are available
+            if (skiElement.bounds != null) {
+                // Calculate the center position using bounds
+                double lat = (skiElement.bounds.minlat + skiElement.bounds.maxlat) / 2.0;
+                double lon = (skiElement.bounds.minlon + skiElement.bounds.maxlon) / 2.0;
+                position = new GeoPoint(lat, lon);
+            } else if (skiElement.geometry != null && !skiElement.geometry.isEmpty()) {
+                // Use the first geometry point as the position
+                Geometry geometry = skiElement.geometry.get(0);
+                position = new GeoPoint(geometry.lat, geometry.lon);
+            }
+
+            if (position != null) {
+                // Add a marker or symbol to represent the SkiElement on the map
+                map.layers().add(addNewPolyline(Color.BLUE));
+            }
+        }
     }
 
 }
