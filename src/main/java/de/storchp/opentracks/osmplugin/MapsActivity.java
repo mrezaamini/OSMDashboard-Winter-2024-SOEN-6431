@@ -142,6 +142,7 @@ public class MapsActivity extends BaseActivity implements ItemizedLayer.OnItemGe
     private int protocolVersion = 1;
     private TrackPointsDebug trackPointsDebug;
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -176,6 +177,7 @@ public class MapsActivity extends BaseActivity implements ItemizedLayer.OnItemGe
         if (intent != null) {
             onNewIntent(intent);
         }
+
     }
 
     private void switchFullscreen() {
@@ -535,6 +537,12 @@ public class MapsActivity extends BaseActivity implements ItemizedLayer.OnItemGe
     }
 
     private void drawLine(GeoPoint startPoint, GeoPoint endPoint, int color, int width) {
+
+        PathLayer borderLine = new PathLayer(map, Color.BLACK, width + 2); // Adjust border width as needed
+        borderLine.addPoint(startPoint);
+        borderLine.addPoint(endPoint);
+        map.layers().add(borderLine);
+
         PathLayer line = new PathLayer(map, color, width);
         line.addPoint(startPoint);
         line.addPoint(endPoint);
@@ -557,7 +565,7 @@ public class MapsActivity extends BaseActivity implements ItemizedLayer.OnItemGe
             GeoPoint startPoint = points.get(i);
             GeoPoint endPoint = points.get(i + 1);
 
-            if (startPoint==null || endPoint==null) {
+            if (startPoint == null || endPoint == null) {
                 Log.e(TAG, "drawSegmentedLine: Invalid points list have either null start-point or end-point");
                 continue;
             }
@@ -566,6 +574,7 @@ public class MapsActivity extends BaseActivity implements ItemizedLayer.OnItemGe
 
             // Draw each segment individually
             drawLine(startPoint, endPoint, color, width);
+            drawLine(startPoint, endPoint, Color.BLACK, width + 2);
         }
     }
 
@@ -603,8 +612,12 @@ public class MapsActivity extends BaseActivity implements ItemizedLayer.OnItemGe
                         }
                     }
                     for (var trackPoint : trackPoints) {
+                        double frequency = 1; //frequency is being calculated based on the avg speed
                         lastTrackPointId = trackPoint.getTrackPointId();
-
+                        if (trackPoint.getSpeed() > average) {
+                            //if track avg speed is higher than avg then it is counted as it is highly used
+                            frequency = 2;
+                        }
                         if (trackPoint.getTrackId() != lastTrackId) {
                             if (trackColorMode == TrackColorMode.BY_TRACK) {
                                 trackColor = colorCreator.nextColor();
@@ -617,7 +630,7 @@ public class MapsActivity extends BaseActivity implements ItemizedLayer.OnItemGe
 
                         if (trackColorMode == TrackColorMode.BY_SPEED) {
                             trackColor = MapUtils.getTrackColorBySpeed(average, averageToMaxSpeed, trackPoint);
-                            polyline = addNewPolyline(trackColor);
+                            polyline = addNewPolyline(trackColor, frequency);
                             if (endPoint != null) {
                                 polyline.addPoint(endPoint);
                             } else if (startPoint != null) {
@@ -626,7 +639,7 @@ public class MapsActivity extends BaseActivity implements ItemizedLayer.OnItemGe
                         } else {
                             if (polyline == null) {
                                 Log.d(TAG, "Continue new segment.");
-                                polyline = addNewPolyline(trackColor);
+                                polyline = addNewPolyline(trackColor, frequency);
                             }
                         }
 
@@ -749,19 +762,19 @@ public class MapsActivity extends BaseActivity implements ItemizedLayer.OnItemGe
         }
     }
 
-    private PathLayer addNewPolyline(int trackColor) {
+    private PathLayer addNewPolyline(int trackColor, double frequency) {
         //Adjusting the width
-        float strokeWidth = 10f; 
+        float strokeWidth = updateStrokeWidth(frequency); //Get stroke width according to frequency
         float borderWidth = 13f;
 
         //Creating a border polyline
-        
+
         PathLayer borderpolyline =new PathLayer(map, Color.BLACK,borderWidth);
         polylinesLayer.layers.add(borderpolyline);
 
         polyline = new PathLayer(map, trackColor, strokeWidth);
-        
-        
+
+
         polylinesLayer.layers.add(polyline);
         return polyline;
     }
@@ -918,6 +931,11 @@ public class MapsActivity extends BaseActivity implements ItemizedLayer.OnItemGe
     private void updateMapPositionAndRotation(final GeoPoint myPos) {
         var newPos = map.getMapPosition().setPosition(myPos).setBearing(mapMode.getHeading(movementDirection));
         map.animator().animateTo(newPos);
+    }
+
+    private float updateStrokeWidth(double frequency) {
+        // frequency is added to the stroke width according to the frequency.
+        return (float) (7f * frequency);
     }
 
 }
