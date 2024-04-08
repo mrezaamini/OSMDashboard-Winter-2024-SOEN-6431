@@ -1036,7 +1036,7 @@ public class MapsActivity extends BaseActivity implements ItemizedLayer.OnItemGe
         }
         if (position != null) {
             // Add a marker to the layer
-            map.layers().add(addNewPolyline(Color.BLUE));
+            map.layers().add(addNewPolyline(Color.BLUE,1));
         }
     }
 
@@ -1067,7 +1067,7 @@ public class MapsActivity extends BaseActivity implements ItemizedLayer.OnItemGe
 
             if (position != null) {
                 // Add a marker or symbol to represent the SkiElement on the map
-                map.layers().add(addNewPolyline(Color.BLUE));
+                map.layers().add(addNewPolyline(Color.BLUE,1));
             }
         }
     }
